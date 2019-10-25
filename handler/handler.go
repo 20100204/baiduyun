@@ -2,10 +2,13 @@ package handler
 
 import (
 	"fmt"
+	"github.com/20100204/baiduyun/meta"
+	"github.com/20100204/baiduyun/util"
 	"io"
 	"io/ioutil"
 	"net/http"
 	"os"
+	"time"
 )
 
 func UploadHandler(w http.ResponseWriter, r *http.Request) {
@@ -22,17 +25,25 @@ func UploadHandler(w http.ResponseWriter, r *http.Request) {
 			return
 		}
 		defer file.Close()
-		newfile, err := os.Create("./img/" + head.Filename)
+		filemeta := meta.FileMeta{
+			FileName: head.Filename,
+			Location: "./img/" + head.Filename,
+			UploadAt: time.Now().Format("2006-01-02 15:04:05"),
+		}
+		newfile, err := os.Create(filemeta.Location)
 		if err != nil {
 			fmt.Printf("faild to create file ,err:%s", err.Error())
 			return
 		}
 		defer newfile.Close()
-		_, err = io.Copy(newfile, file)
+		filemeta.FileSize, err = io.Copy(newfile, file)
 		if err != nil {
 			fmt.Printf("faild to save data into file,err:%s", err.Error())
 			return
 		}
+		newfile.Seek(0, 0)
+		filemeta.FileSha1 = util.FileSha1(newfile)
+		meta.UpdateFileMeta(filemeta)
 		http.Redirect(w, r, "/file/upload/suc", http.StatusFound)
 	}
 }
